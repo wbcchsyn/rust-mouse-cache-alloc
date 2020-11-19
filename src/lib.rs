@@ -41,6 +41,15 @@ struct SizeAllocator {
     size: AtomicUsize,
 }
 
+impl SizeAllocator {
+    /// Creates a new instance with no allocating memory.
+    pub const fn new() -> Self {
+        Self {
+            size: AtomicUsize::new(0),
+        }
+    }
+}
+
 /// Returns size of memory allocated from heap.
 ///
 /// Argument `ptr` must fulfill the followings
