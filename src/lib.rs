@@ -35,6 +35,31 @@
 
 use std::os::raw::c_void;
 
+/// Returns size of memory allocated from heap.
+///
+/// Argument `ptr` must fulfill the followings
+///
+/// - It must be what `std::alloc::alloc` returned.
+/// - It must not be null.
+/// - It must not have been deallocated yet.
+///
+/// # Safety
+///
+/// The behavior is undefined if `ptr` doesn't satisfy the
+/// requirements.
+///
+/// # Warnings
+///
+/// This function works under both Linux `dmalloc` and `jemalloc` ,
+/// however, it is based on `malloc_usable_size`, which is not defined
+/// in POSIX.
+#[cfg(unix)]
+pub unsafe fn allocating_size<T>(ptr: *const T) -> usize {
+    debug_assert_eq!(false, ptr.is_null());
+
+    malloc_usable_size(ptr as *const c_void)
+}
+
 extern "C" {
     /// Returns size of memory allocated from heap.
     ///
