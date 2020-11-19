@@ -74,6 +74,23 @@ unsafe impl GlobalAlloc for SizeAllocator {
         ptr
     }
 
+    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        let old_size = allocating_size(ptr);
+        let ptr_ = std::alloc::realloc(ptr, layout, new_size);
+
+        if (ptr_ != ptr) && !ptr_.is_null() {
+            let new_size = allocating_size(ptr_);
+
+            if (old_size < new_size) {
+                self.size.fetch_add(new_size - old_size, Ordering::SeqCst);
+            } else {
+                self.size.fetch_sub(old_size - new_size, Ordering::SeqCst);
+            }
+        }
+
+        ptr_
+    }
+
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         debug_assert!(!ptr.is_null());
 
