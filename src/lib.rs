@@ -34,7 +34,7 @@
 //! # mouse-cache-alloc
 
 use core::alloc::{GlobalAlloc, Layout};
-use core::sync::atomic::AtomicUsize;
+use core::sync::atomic::{AtomicUsize, Ordering};
 use std::os::raw::c_void;
 
 /// Implementation for `GlobalAlloc` to store allocating memory size.
@@ -52,8 +52,15 @@ impl SizeAllocator {
 }
 
 unsafe impl GlobalAlloc for SizeAllocator {
-    unsafe fn alloc(&self, _layout: Layout) -> *mut u8 {
-        panic!("Not implemented yet.");
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let ptr = std::alloc::alloc(layout);
+
+        if !ptr.is_null() {
+            let size = allocating_size(ptr);
+            self.size.fetch_add(size, Ordering::Acquire);
+        }
+
+        ptr
     }
 
     unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
