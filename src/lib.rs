@@ -33,7 +33,13 @@
 
 //! # mouse-cache-alloc
 
+use core::sync::atomic::AtomicUsize;
 use std::os::raw::c_void;
+
+/// Implementation for `GlobalAlloc` to store allocating memory size.
+struct SizeAllocator {
+    size: AtomicUsize,
+}
 
 /// Returns size of memory allocated from heap.
 ///
