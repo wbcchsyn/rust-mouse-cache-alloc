@@ -33,6 +33,7 @@
 
 //! # mouse-cache-alloc
 
+use core::alloc::{GlobalAlloc, Layout};
 use core::sync::atomic::AtomicUsize;
 use std::os::raw::c_void;
 
@@ -47,6 +48,16 @@ impl SizeAllocator {
         Self {
             size: AtomicUsize::new(0),
         }
+    }
+}
+
+unsafe impl GlobalAlloc for SizeAllocator {
+    unsafe fn alloc(&self, _layout: Layout) -> *mut u8 {
+        panic!("Not implemented yet.");
+    }
+
+    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
+        panic!("Not implemented yet.");
     }
 }
 
