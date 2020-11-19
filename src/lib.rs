@@ -37,6 +37,28 @@ use core::alloc::{GlobalAlloc, Layout};
 use core::sync::atomic::{AtomicUsize, Ordering};
 use std::os::raw::c_void;
 
+/// Same to `std::alloc::alloc` except for this method is for cache memory.
+pub unsafe fn alloc(layout: Layout) -> *mut u8 {
+    SIZE_ALLOC.alloc(layout)
+}
+
+/// Same to `std::alloc::alloc_zeroed` except for this method is for cache memory.
+pub unsafe fn alloc_zeroed(layout: Layout) -> *mut u8 {
+    SIZE_ALLOC.alloc_zeroed(layout)
+}
+
+/// Same to `std::alloc::realloc` except for this method is for cache memory.
+pub unsafe fn realloc(ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+    SIZE_ALLOC.realloc(ptr, layout, new_size)
+}
+
+/// Same to `std::alloc::dealloc` except for this method is for cache memory.
+pub unsafe fn dealloc(ptr: *mut u8, layout: Layout) {
+    SIZE_ALLOC.dealloc(ptr, layout);
+}
+
+static SIZE_ALLOC: SizeAllocator = SizeAllocator::new();
+
 /// Implementation for `GlobalAlloc` to store allocating memory size.
 struct SizeAllocator {
     size: AtomicUsize,
@@ -59,7 +81,7 @@ impl SizeAllocator {
     pub fn increase_size(&self, bytes: usize) -> usize {
         self.size.fetch_add(bytes, Ordering::Acquire) + bytes
     }
-    
+
     /// Decrease the allocating memory size by `bytes` and returns the new byte size.
     pub fn decrease_size(&self, bytes: usize) -> usize {
         self.size.fetch_sub(bytes, Ordering::Acquire) - bytes
@@ -96,7 +118,7 @@ unsafe impl GlobalAlloc for SizeAllocator {
         if (ptr_ != ptr) && !ptr_.is_null() {
             let new_size = allocating_size(ptr_);
 
-            if (old_size < new_size) {
+            if old_size < new_size {
                 self.size.fetch_add(new_size - old_size, Ordering::SeqCst);
             } else {
                 self.size.fetch_sub(old_size - new_size, Ordering::SeqCst);
