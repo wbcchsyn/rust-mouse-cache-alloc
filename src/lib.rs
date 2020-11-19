@@ -54,6 +54,11 @@ impl SizeAllocator {
     pub fn allocating_size(&self) -> usize {
         self.size.load(Ordering::Relaxed)
     }
+
+    /// Increase the allocating memory size by `bytes` and returns the new byte size.
+    pub fn increase_size(&self, bytes: usize) -> usize {
+        self.size.fetch_add(bytes, Ordering::Acquire) + bytes
+    }
 }
 
 unsafe impl GlobalAlloc for SizeAllocator {
