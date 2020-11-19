@@ -57,6 +57,11 @@ pub unsafe fn dealloc(ptr: *mut u8, layout: Layout) {
     SIZE_ALLOC.dealloc(ptr, layout);
 }
 
+/// Returns how many bytes memory is allocated for cache.
+pub fn cache_size() -> usize {
+    SIZE_ALLOC.allocating_size()
+}
+
 static SIZE_ALLOC: SizeAllocator = SizeAllocator::new();
 
 /// Implementation for `GlobalAlloc` to store allocating memory size.
