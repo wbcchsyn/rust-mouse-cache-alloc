@@ -49,6 +49,11 @@ impl SizeAllocator {
             size: AtomicUsize::new(0),
         }
     }
+
+    /// Returns the total byte size of allocating memory.
+    pub fn allocating_size(&self) -> usize {
+        self.size.load(Ordering::Relaxed)
+    }
 }
 
 unsafe impl GlobalAlloc for SizeAllocator {
