@@ -72,6 +72,10 @@ pub fn decrease_cache_size(bytes: usize) -> usize {
     SIZE_ALLOC.decrease_size(bytes)
 }
 
+/// Implementation for `GlobalAlloc` to allocate/deallocate memory for cache.
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+pub struct Alloc;
+
 static SIZE_ALLOC: SizeAllocator = SizeAllocator::new();
 
 /// Implementation for `GlobalAlloc` to store allocating memory size.
