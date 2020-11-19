@@ -28,3 +28,15 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+/// A wrapper of `std::vec::Vec` to use `crate::Alloc` .
+///
+/// This struct will not be used after [`allocator_api`] and the [`integration`]
+/// will be merged into rust stable toolchain.
+///
+/// [`allocator_api`]: https://github.com/rust-lang/rust/issues/32838
+/// [`integration`]: https://github.com/rust-lang/rust/pull/42313
+pub struct Vec<T> {
+    inner: std::vec::Vec<T>,
+    size: usize,
+}
