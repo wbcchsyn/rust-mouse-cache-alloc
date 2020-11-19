@@ -32,3 +32,26 @@
 #![deny(missing_docs)]
 
 //! # mouse-cache-alloc
+
+use std::os::raw::c_void;
+
+extern "C" {
+    /// Returns size of memory allocated from heap.
+    ///
+    /// Argument `ptr` must be what `std::alloc::alloc` returned, and
+    /// must not be deallocated yet.
+    /// If `ptr` is null pointer, always returns 0.
+    ///
+    /// # Safety
+    ///
+    /// The behavior is undefined if `ptr` doesn't satisfy the
+    /// requirements.
+    ///
+    /// # Warnings
+    ///
+    /// Both Linux `dmalloc` and `jemalloc`  implemnets this function,
+    /// however, it is not defined in POSIX.
+    /// For example, `tcmalloc` names `tc_malloc_size` the same function.
+    #[cfg(unix)]
+    fn malloc_usable_size(ptr: *const c_void) -> usize;
+}
