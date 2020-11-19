@@ -47,6 +47,11 @@ pub unsafe fn alloc_zeroed(layout: Layout) -> *mut u8 {
     SIZE_ALLOC.alloc_zeroed(layout)
 }
 
+/// Same to `std::alloc::realloc` except for this method is for cache memory.
+pub unsafe fn realloc(ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+    SIZE_ALLOC.realloc(ptr, layout, new_size)
+}
+
 /// Same to `std::alloc::dealloc` except for this method is for cache memory.
 pub unsafe fn dealloc(ptr: *mut u8, layout: Layout) {
     SIZE_ALLOC.dealloc(ptr, layout);
