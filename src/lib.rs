@@ -72,6 +72,28 @@ pub fn decrease_cache_size(bytes: usize) -> usize {
     SIZE_ALLOC.decrease_size(bytes)
 }
 
+/// Implementation for `GlobalAlloc` to allocate/deallocate memory for cache.
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+pub struct Alloc;
+
+unsafe impl GlobalAlloc for Alloc {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        alloc(layout)
+    }
+
+    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+        alloc_zeroed(layout)
+    }
+
+    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        realloc(ptr, layout, new_size)
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        dealloc(ptr, layout);
+    }
+}
+
 static SIZE_ALLOC: SizeAllocator = SizeAllocator::new();
 
 /// Implementation for `GlobalAlloc` to store allocating memory size.
