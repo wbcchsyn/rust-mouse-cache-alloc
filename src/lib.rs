@@ -67,6 +67,11 @@ pub fn increase_cache_size(bytes: usize) -> usize {
     SIZE_ALLOC.increase_size(bytes)
 }
 
+/// Decreases caching memory size by `bytes` and returns the new size.
+pub fn decrease_cache_size(bytes: usize) -> usize {
+    SIZE_ALLOC.decrease_size(bytes)
+}
+
 static SIZE_ALLOC: SizeAllocator = SizeAllocator::new();
 
 /// Implementation for `GlobalAlloc` to store allocating memory size.
