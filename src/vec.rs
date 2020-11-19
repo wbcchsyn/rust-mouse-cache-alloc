@@ -29,6 +29,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::decrease_cache_size;
+
 /// A wrapper of `std::vec::Vec` to use `crate::Alloc` .
 ///
 /// This struct will not be used after [`allocator_api`] and the [`integration`]
@@ -39,4 +41,10 @@
 pub struct Vec<T> {
     inner: std::vec::Vec<T>,
     size: usize,
+}
+
+impl<T> Drop for Vec<T> {
+    fn drop(&mut self) {
+        decrease_cache_size(self.size);
+    }
 }
