@@ -63,6 +63,17 @@ unsafe impl GlobalAlloc for SizeAllocator {
         ptr
     }
 
+    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+        let ptr = std::alloc::alloc_zeroed(layout);
+
+        if !ptr.is_null() {
+            let size = allocating_size(ptr);
+            self.size.fetch_add(size, Ordering::Acquire);
+        }
+
+        ptr
+    }
+
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         debug_assert!(!ptr.is_null());
 
