@@ -63,8 +63,13 @@ unsafe impl GlobalAlloc for SizeAllocator {
         ptr
     }
 
-    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
-        panic!("Not implemented yet.");
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        debug_assert!(!ptr.is_null());
+
+        let size = allocating_size(ptr);
+        self.size.fetch_sub(size, Ordering::Release);
+
+        std::alloc::dealloc(ptr, layout);
     }
 }
 
