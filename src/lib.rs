@@ -59,7 +59,7 @@ impl SizeAllocator {
     pub fn increase_size(&self, bytes: usize) -> usize {
         self.size.fetch_add(bytes, Ordering::Acquire) + bytes
     }
-    
+
     /// Decrease the allocating memory size by `bytes` and returns the new byte size.
     pub fn decrease_size(&self, bytes: usize) -> usize {
         self.size.fetch_sub(bytes, Ordering::Acquire) - bytes
@@ -96,7 +96,7 @@ unsafe impl GlobalAlloc for SizeAllocator {
         if (ptr_ != ptr) && !ptr_.is_null() {
             let new_size = allocating_size(ptr_);
 
-            if (old_size < new_size) {
+            if old_size < new_size {
                 self.size.fetch_add(new_size - old_size, Ordering::SeqCst);
             } else {
                 self.size.fetch_sub(old_size - new_size, Ordering::SeqCst);
