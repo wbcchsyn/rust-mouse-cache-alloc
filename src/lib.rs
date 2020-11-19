@@ -37,6 +37,11 @@ use core::alloc::{GlobalAlloc, Layout};
 use core::sync::atomic::{AtomicUsize, Ordering};
 use std::os::raw::c_void;
 
+/// Same to `std::alloc::alloc` except for this method is for cache memory.
+pub unsafe fn alloc(layout: Layout) -> *mut u8 {
+    SIZE_ALLOC.alloc(layout)
+}
+
 static SIZE_ALLOC: SizeAllocator = SizeAllocator::new();
 
 /// Implementation for `GlobalAlloc` to store allocating memory size.
