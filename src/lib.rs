@@ -37,6 +37,8 @@ use core::alloc::{GlobalAlloc, Layout};
 use core::sync::atomic::{AtomicUsize, Ordering};
 use std::os::raw::c_void;
 
+static SIZE_ALLOC: SizeAllocator = SizeAllocator::new();
+
 /// Implementation for `GlobalAlloc` to store allocating memory size.
 struct SizeAllocator {
     size: AtomicUsize,
