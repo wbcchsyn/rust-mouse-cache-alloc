@@ -33,6 +33,8 @@
 
 //! # mouse-cache-alloc
 
+mod vec;
+
 use core::alloc::{GlobalAlloc, Layout};
 use core::sync::atomic::{AtomicUsize, Ordering};
 use std::os::raw::c_void;
