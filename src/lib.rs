@@ -42,6 +42,11 @@ pub unsafe fn alloc(layout: Layout) -> *mut u8 {
     SIZE_ALLOC.alloc(layout)
 }
 
+/// Same to `std::alloc::dealloc` except for this method is for cache memory.
+pub unsafe fn dealloc(ptr: *mut u8, layout: Layout) {
+    SIZE_ALLOC.dealloc(ptr, layout);
+}
+
 static SIZE_ALLOC: SizeAllocator = SizeAllocator::new();
 
 /// Implementation for `GlobalAlloc` to store allocating memory size.
