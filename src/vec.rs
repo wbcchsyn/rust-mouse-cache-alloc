@@ -30,6 +30,16 @@
 // limitations under the License.
 
 use crate::{allocating_size, decrease_cache_size, increase_cache_size};
+use core::cmp::Ordering;
+use core::hash::{Hash, Hasher};
+use core::iter::{Extend, FromIterator};
+use core::ops::{Deref, DerefMut, Index, IndexMut};
+use core::slice::{Iter, IterMut, SliceIndex};
+use std::borrow::{Borrow, BorrowMut, Cow};
+use std::collections::BinaryHeap;
+use std::collections::VecDeque;
+use std::ffi::CString;
+use std::io::{Result, Write};
 
 /// A wrapper of `std::vec::Vec` to use `crate::Alloc` .
 ///
@@ -38,6 +48,7 @@ use crate::{allocating_size, decrease_cache_size, increase_cache_size};
 ///
 /// [`allocator_api`]: https://github.com/rust-lang/rust/issues/32838
 /// [`integration`]: https://github.com/rust-lang/rust/pull/42313
+#[derive(Debug)]
 pub struct Vec<T> {
     inner: std::vec::Vec<T>,
     size: usize,
@@ -430,5 +441,349 @@ impl<T> Vec<T> {
             increase_cache_size(new_size - self.size);
             self.size = new_size;
         }
+    }
+}
+
+impl<T> Deref for Vec<T> {
+    type Target = [T];
+    fn deref(&self) -> &Self::Target {
+        self.inner.deref()
+    }
+}
+
+impl<T> AsMut<[T]> for Vec<T> {
+    fn as_mut(&mut self) -> &mut [T] {
+        self.inner.as_mut()
+    }
+}
+
+impl<T> AsRef<[T]> for Vec<T> {
+    fn as_ref(&self) -> &[T] {
+        self.inner.as_ref()
+    }
+}
+
+impl<T> Borrow<[T]> for Vec<T> {
+    fn borrow(&self) -> &[T] {
+        self.inner.borrow()
+    }
+}
+
+impl<T> BorrowMut<[T]> for Vec<T> {
+    fn borrow_mut(&mut self) -> &mut [T] {
+        self.inner.borrow_mut()
+    }
+}
+
+impl<T> Clone for Vec<T>
+where
+    T: Clone,
+{
+    fn clone(&self) -> Self {
+        let mut ret = Self::new();
+        ret.extend_from_slice(self.as_ref());
+        ret
+    }
+}
+
+impl<T> Default for Vec<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T> DerefMut for Vec<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.inner.deref_mut()
+    }
+}
+
+impl<T> Eq for Vec<T> where T: Eq {}
+
+impl<'a, T> Extend<&'a T> for Vec<T>
+where
+    T: 'a + Copy,
+{
+    fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = &'a T>,
+    {
+        let old_ptr = self.as_ptr();
+        self.inner.extend(iter);
+        unsafe { self.update_cache_size(old_ptr) };
+    }
+}
+
+impl<T> Extend<T> for Vec<T> {
+    fn extend<I>(&mut self, iter: I)
+    where
+        I: IntoIterator<Item = T>,
+    {
+        let old_ptr = self.as_ptr();
+        self.inner.extend(iter);
+        unsafe { self.update_cache_size(old_ptr) };
+    }
+}
+
+impl<T> From<std::vec::Vec<T>> for Vec<T> {
+    fn from(inner: std::vec::Vec<T>) -> Self {
+        let mut ret = Self::new();
+        let old_ptr = ret.as_ptr();
+        ret.inner = inner;
+        unsafe { ret.update_cache_size(old_ptr) };
+        ret
+    }
+}
+
+impl<T> From<&'_ [T]> for Vec<T>
+where
+    T: Clone,
+{
+    fn from(s: &[T]) -> Self {
+        let inner = std::vec::Vec::<T>::from(s);
+        Self::from(inner)
+    }
+}
+
+impl<T> From<&'_ mut [T]> for Vec<T>
+where
+    T: Clone,
+{
+    fn from(s: &mut [T]) -> Self {
+        let inner = std::vec::Vec::<T>::from(s);
+        Self::from(inner)
+    }
+}
+
+impl From<&'_ str> for Vec<u8> {
+    fn from(s: &str) -> Self {
+        Self::from(s.as_bytes())
+    }
+}
+
+impl<T> From<BinaryHeap<T>> for Vec<T> {
+    fn from(bh: BinaryHeap<T>) -> Self {
+        let inner = std::vec::Vec::<T>::from(bh);
+        Self::from(inner)
+    }
+}
+
+impl<T> From<Box<[T]>> for Vec<T> {
+    fn from(b: Box<[T]>) -> Self {
+        let inner = std::vec::Vec::<T>::from(b);
+        Self::from(inner)
+    }
+}
+
+impl From<CString> for Vec<u8> {
+    fn from(s: CString) -> Self {
+        let inner = std::vec::Vec::<u8>::from(s);
+        Self::from(inner)
+    }
+}
+
+impl From<String> for Vec<u8> {
+    fn from(s: String) -> Self {
+        let inner = std::vec::Vec::<u8>::from(s);
+        Self::from(inner)
+    }
+}
+
+impl<T> From<VecDeque<T>> for Vec<T> {
+    fn from(q: VecDeque<T>) -> Self {
+        let inner = std::vec::Vec::<T>::from(q);
+        Self::from(inner)
+    }
+}
+
+impl<T> FromIterator<T> for Vec<T> {
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = T>,
+    {
+        let inner = std::vec::Vec::<T>::from_iter(iter);
+        Self::from(inner)
+    }
+}
+
+impl<T> Hash for Vec<T>
+where
+    T: Hash,
+{
+    fn hash<H>(&self, state: &mut H)
+    where
+        H: Hasher,
+    {
+        self.inner.hash(state);
+    }
+}
+
+impl<T, I> Index<I> for Vec<T>
+where
+    I: SliceIndex<[T]>,
+{
+    type Output = <I as SliceIndex<[T]>>::Output;
+    fn index(&self, index: I) -> &Self::Output {
+        self.inner.index(index)
+    }
+}
+
+impl<T, I> IndexMut<I> for Vec<T>
+where
+    I: SliceIndex<[T]>,
+{
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        self.inner.index_mut(index)
+    }
+}
+
+impl<'a, T> IntoIterator for &'a mut Vec<T> {
+    type Item = &'a mut T;
+    type IntoIter = IterMut<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (&mut self.inner).into_iter()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a Vec<T> {
+    type Item = &'a T;
+    type IntoIter = Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (&self.inner).into_iter()
+    }
+}
+
+impl<T> Ord for Vec<T>
+where
+    T: Ord,
+{
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.inner.cmp(&other.inner)
+    }
+}
+
+impl<A, B> PartialEq<&'_ [B]> for Vec<A>
+where
+    A: PartialEq<B>,
+{
+    fn eq(&self, other: &&[B]) -> bool {
+        self.inner.eq(other)
+    }
+}
+
+impl<A, B> PartialEq<&'_ mut [B]> for Vec<A>
+where
+    A: PartialEq<B>,
+{
+    fn eq(&self, other: &&mut [B]) -> bool {
+        self.inner.eq(other)
+    }
+}
+
+impl<A, B> PartialEq<Vec<B>> for VecDeque<A>
+where
+    A: PartialEq<B>,
+{
+    fn eq(&self, other: &Vec<B>) -> bool {
+        self.eq(&other.inner)
+    }
+}
+
+impl<A, B> PartialEq<Vec<B>> for &'_ [A]
+where
+    A: PartialEq<B>,
+{
+    fn eq(&self, other: &Vec<B>) -> bool {
+        self.eq(&other.inner)
+    }
+}
+
+impl<A, B> PartialEq<Vec<B>> for &'_ mut [A]
+where
+    A: PartialEq<B>,
+{
+    fn eq(&self, other: &Vec<B>) -> bool {
+        self.eq(&other.inner)
+    }
+}
+
+impl<A, B> PartialEq<Vec<B>> for Cow<'_, [A]>
+where
+    A: PartialEq<B> + Clone,
+{
+    fn eq(&self, other: &Vec<B>) -> bool {
+        self.eq(&other.inner)
+    }
+}
+
+impl<A, B> PartialEq<Vec<B>> for Vec<A>
+where
+    A: PartialEq<B>,
+{
+    fn eq(&self, other: &Vec<B>) -> bool {
+        self.inner.eq(&other.inner)
+    }
+}
+
+impl<A, B> PartialEq<Vec<B>> for std::vec::Vec<A>
+where
+    A: PartialEq<B>,
+{
+    fn eq(&self, other: &Vec<B>) -> bool {
+        self.eq(&other.inner)
+    }
+}
+
+impl<A, B> PartialEq<std::vec::Vec<B>> for Vec<A>
+where
+    A: PartialEq<B>,
+{
+    fn eq(&self, other: &std::vec::Vec<B>) -> bool {
+        self.inner.eq(other)
+    }
+}
+
+impl<T> PartialOrd<Vec<T>> for Vec<T>
+where
+    T: PartialOrd<T>,
+{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.inner.partial_cmp(&other.inner)
+    }
+}
+
+impl<T> PartialOrd<Vec<T>> for std::vec::Vec<T>
+where
+    T: PartialOrd<T>,
+{
+    fn partial_cmp(&self, other: &Vec<T>) -> Option<Ordering> {
+        self.partial_cmp(&other.inner)
+    }
+}
+
+impl<T> PartialOrd<std::vec::Vec<T>> for Vec<T>
+where
+    T: PartialOrd<T>,
+{
+    fn partial_cmp(&self, other: &std::vec::Vec<T>) -> Option<Ordering> {
+        self.inner.partial_cmp(other)
+    }
+}
+
+impl Write for Vec<u8> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+        let old_ptr = self.as_ptr();
+        let ret = self.inner.write(buf);
+        unsafe { self.update_cache_size(old_ptr) };
+        ret
+    }
+
+    fn flush(&mut self) -> Result<()> {
+        let old_ptr = self.as_ptr();
+        let ret = self.inner.flush();
+        unsafe { self.update_cache_size(old_ptr) };
+        ret
     }
 }
