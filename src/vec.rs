@@ -29,7 +29,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::decrease_cache_size;
+use crate::{allocating_size, decrease_cache_size, increase_cache_size};
 
 /// A wrapper of `std::vec::Vec` to use `crate::Alloc` .
 ///
@@ -268,5 +268,167 @@ impl<T> Vec<T> {
         let _old_ptr = self.as_ptr();
         self.inner.dedup();
         debug_assert_eq!(_old_ptr, self.as_ptr())
+    }
+}
+
+/// Delegate methods which can allocate or deallocate heap memory.
+///
+/// Note that the capacity must not be shrinked; i.e. method `shrink_to_fit` must not be
+/// implemented.
+/// (This is because `std::vec::Vec` could place the buffer on stack for optimization.
+/// This package cannot distinguish whether the buffer is on heap or not, and the behavior
+/// is undefined if it is on stack.)
+impl<T> Vec<T> {
+    /// Creates an empty instance with specified `capacity` .
+    ///
+    /// This method delegates to the inner `std::vec::Vec` except for updating
+    /// cache memory size to allocate.
+    /// See `std::vec::Vec::with_capacity` for details.
+    pub fn with_capacity(capacity: usize) -> Self {
+        let mut ret = Self::new();
+        ret.reserve_exact(capacity);
+        ret
+    }
+
+    /// Reserves capacity for at least `additional` more elements to hold.
+    ///
+    /// This method delegates to the inner `std::vec::Vec` except for updating
+    /// cache memory size to allocate.
+    /// See `std::vec::Vec::reserve` for details.
+    pub fn reserve(&mut self, additional: usize) {
+        let old_ptr = self.as_ptr();
+        self.inner.reserve(additional);
+        unsafe { self.update_cache_size(old_ptr) };
+    }
+
+    /// Reserves the minimum capacity for at least `additional` more elements to hold.
+    ///
+    /// This method delegates to the inner `std::vec::Vec` except for updating
+    /// cache memory size to allocate.
+    /// See `std::vec::Vec::reserve_exact` for details.
+    pub fn reserve_exact(&mut self, additional: usize) {
+        let old_ptr = self.as_ptr();
+        self.inner.reserve_exact(additional);
+        unsafe { self.update_cache_size(old_ptr) };
+    }
+
+    /// Inserts `element` at position `index` .
+    ///
+    /// The all elements after `index` will be shifted to the right.
+    ///
+    /// This method delegates to the inner `std::vec::Vec` except for updating
+    /// cache memory size to allocate.
+    /// See `std::vec::Vec::insert` for details.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` is greater than `self.len` .
+    pub fn insert(&mut self, index: usize, element: T) {
+        let old_ptr = self.as_ptr();
+        self.inner.insert(index, element);
+        unsafe { self.update_cache_size(old_ptr) };
+    }
+
+    /// Appends `element` at the end of `self` .
+    ///
+    /// This method delegates to the inner `std::vec::Vec` except for updating
+    /// cache memory size to allocate.
+    /// See `std::vec::Vec::push` for details.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` is greater than `self.len` .
+    pub fn push(&mut self, element: T) {
+        let old_ptr = self.as_ptr();
+        self.inner.push(element);
+        unsafe { self.update_cache_size(old_ptr) };
+    }
+
+    /// Splits the collection into two at the given index.
+    ///
+    /// Returns a newly allocated vector containing elements in the range [at, len).
+    /// After the call, `self` will be left containing elements [0, at).
+    ///
+    /// This method delegates to the inner `std::vec::Vec` except for updating
+    /// cache memory size to allocate.
+    /// See `std::vec::Vec::split_off` for details.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `at` is greater than `self.len` .
+    pub fn split_off(&mut self, at: usize) -> Self {
+        let _old_ptr = self.as_ptr();
+        let inner = self.inner.split_off(at);
+        debug_assert_eq!(_old_ptr, self.as_ptr());
+
+        let size = unsafe { allocating_size(inner.as_ptr()) };
+        Self { inner, size }
+    }
+
+    /// Resize `self` in place so that `self.len` will equal to `new_len` .
+    ///
+    /// If `new_len` is less than `self.len` , `self` will be simply truncated; otherwise,
+    /// pushes elements till `self.len` is `new_len` . Element is created by calling `f` on
+    /// evely push.
+    ///
+    /// This method delegates to the inner `std::vec::Vec` except for updating
+    /// cache memory size to allocate.
+    /// See `std::vec::Vec::resize_with` for details.
+    pub fn resize_with<F>(&mut self, new_len: usize, f: F)
+    where
+        F: FnMut() -> T,
+    {
+        let old_ptr = self.as_ptr();
+        let ret = self.inner.resize_with(new_len, f);
+        unsafe { self.update_cache_size(old_ptr) };
+
+        ret
+    }
+
+    /// Resize `self` in place so that `self.len` will equal to `new_len` .
+    ///
+    /// If `new_len` is less than `self.len` , `self` will be simply truncated; otherwise,
+    /// clones `value` and pushes till `self.len` is `new_len` .
+    ///
+    /// This method delegates to the inner `std::vec::Vec` except for updating
+    /// cache memory size to allocate.
+    /// See `std::vec::Vec::resize` for details.
+    pub fn resize(&mut self, new_len: usize, value: T)
+    where
+        T: Clone,
+    {
+        let old_ptr = self.as_ptr();
+        self.inner.resize(new_len, value);
+        unsafe { self.update_cache_size(old_ptr) };
+    }
+
+    /// Clones and appends all the elements in `other` .
+    ///
+    /// This method delegates to the inner `std::vec::Vec` except for updating
+    /// cache memory size to allocate.
+    /// See `std::vec::Vec::extend_from_slice` for details.
+    pub fn extend_from_slice(&mut self, other: &[T])
+    where
+        T: Clone,
+    {
+        let old_ptr = self.as_ptr();
+        self.inner.extend_from_slice(other);
+        unsafe { self.update_cache_size(old_ptr) };
+    }
+
+    /// Checks the buffer is newly allocated or not, and updates the cache using memory size.
+    ///
+    /// # Safety
+    ///
+    /// The behavior is undefined if the buffer is currently on stack and if old_ptr is on heap.
+    unsafe fn update_cache_size(&mut self, old_ptr: *const T) {
+        let new_ptr = self.as_ptr();
+
+        if old_ptr != new_ptr {
+            let new_size = allocating_size(new_ptr);
+            debug_assert!(self.size < new_size);
+            increase_cache_size(new_size - self.size);
+            self.size = new_size;
+        }
     }
 }
