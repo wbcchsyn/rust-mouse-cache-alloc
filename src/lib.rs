@@ -33,9 +33,12 @@
 
 //! # mouse-cache-alloc
 
+mod vec;
+
 use core::alloc::{GlobalAlloc, Layout};
 use core::sync::atomic::{AtomicUsize, Ordering};
 use std::os::raw::c_void;
+pub use vec::Vec;
 
 /// Same to `std::alloc::alloc` except for this method is for cache memory.
 pub unsafe fn alloc(layout: Layout) -> *mut u8 {
