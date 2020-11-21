@@ -41,36 +41,43 @@ use std::os::raw::c_void;
 pub use vec::Vec;
 
 /// Same to `std::alloc::alloc` except for this method is for cache memory.
+#[inline]
 pub unsafe fn alloc(layout: Layout) -> *mut u8 {
     SIZE_ALLOC.alloc(layout)
 }
 
 /// Same to `std::alloc::alloc_zeroed` except for this method is for cache memory.
+#[inline]
 pub unsafe fn alloc_zeroed(layout: Layout) -> *mut u8 {
     SIZE_ALLOC.alloc_zeroed(layout)
 }
 
 /// Same to `std::alloc::realloc` except for this method is for cache memory.
+#[inline]
 pub unsafe fn realloc(ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
     SIZE_ALLOC.realloc(ptr, layout, new_size)
 }
 
 /// Same to `std::alloc::dealloc` except for this method is for cache memory.
+#[inline]
 pub unsafe fn dealloc(ptr: *mut u8, layout: Layout) {
     SIZE_ALLOC.dealloc(ptr, layout);
 }
 
 /// Returns how many bytes memory is allocated for cache.
+#[inline]
 pub fn cache_size() -> usize {
     SIZE_ALLOC.allocating_size()
 }
 
 /// Increases caching memory size by `bytes` and returns the new size.
+#[inline]
 pub fn increase_cache_size(bytes: usize) -> usize {
     SIZE_ALLOC.increase_size(bytes)
 }
 
 /// Decreases caching memory size by `bytes` and returns the new size.
+#[inline]
 pub fn decrease_cache_size(bytes: usize) -> usize {
     SIZE_ALLOC.decrease_size(bytes)
 }
@@ -80,18 +87,22 @@ pub fn decrease_cache_size(bytes: usize) -> usize {
 pub struct Alloc;
 
 unsafe impl GlobalAlloc for Alloc {
+    #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         alloc(layout)
     }
 
+    #[inline]
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
         alloc_zeroed(layout)
     }
 
+    #[inline]
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         realloc(ptr, layout, new_size)
     }
 
+    #[inline]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         dealloc(ptr, layout);
     }
@@ -106,6 +117,7 @@ struct SizeAllocator {
 
 impl SizeAllocator {
     /// Creates a new instance with no allocating memory.
+    #[inline]
     pub const fn new() -> Self {
         Self {
             size: AtomicUsize::new(0),
@@ -113,22 +125,26 @@ impl SizeAllocator {
     }
 
     /// Returns the total byte size of allocating memory.
+    #[inline]
     pub fn allocating_size(&self) -> usize {
         self.size.load(Ordering::Relaxed)
     }
 
     /// Increase the allocating memory size by `bytes` and returns the new byte size.
+    #[inline]
     pub fn increase_size(&self, bytes: usize) -> usize {
         self.size.fetch_add(bytes, Ordering::Acquire) + bytes
     }
 
     /// Decrease the allocating memory size by `bytes` and returns the new byte size.
+    #[inline]
     pub fn decrease_size(&self, bytes: usize) -> usize {
         self.size.fetch_sub(bytes, Ordering::Acquire) - bytes
     }
 }
 
 unsafe impl GlobalAlloc for SizeAllocator {
+    #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let ptr = std::alloc::alloc(layout);
 
@@ -140,6 +156,7 @@ unsafe impl GlobalAlloc for SizeAllocator {
         ptr
     }
 
+    #[inline]
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
         let ptr = std::alloc::alloc_zeroed(layout);
 
@@ -151,6 +168,7 @@ unsafe impl GlobalAlloc for SizeAllocator {
         ptr
     }
 
+    #[inline]
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         let old_size = allocating_size(ptr);
         let ptr_ = std::alloc::realloc(ptr, layout, new_size);
@@ -168,6 +186,7 @@ unsafe impl GlobalAlloc for SizeAllocator {
         ptr_
     }
 
+    #[inline]
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         debug_assert!(!ptr.is_null());
 
@@ -197,6 +216,7 @@ unsafe impl GlobalAlloc for SizeAllocator {
 /// however, it is based on `malloc_usable_size`, which is not defined
 /// in POSIX.
 #[cfg(unix)]
+#[inline]
 pub unsafe fn allocating_size<T>(ptr: *const T) -> usize {
     debug_assert_eq!(false, ptr.is_null());
 
