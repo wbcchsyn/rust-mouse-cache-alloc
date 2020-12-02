@@ -149,6 +149,19 @@ where
     }
 }
 
+impl<T: ?Sized, A> Clone for CrcInner<T, A>
+where
+    A: GlobalAlloc + Clone,
+{
+    fn clone(&self) -> Self {
+        self.counter().fetch_add(1, Ordering::Acquire);
+        Self {
+            ptr: self.ptr,
+            alloc: self.alloc.clone(),
+        }
+    }
+}
+
 impl<T: ?Sized, A> CrcInner<T, A>
 where
     A: GlobalAlloc,
@@ -218,5 +231,27 @@ mod crcinner_tests {
 
         let crc_inner = CrcInner::into_any(crc_inner);
         assert_eq!(1, crc_inner.counter().load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn clone() {
+        let val = 0;
+        let alloc = TestAlloc::<System>::default();
+
+        let inner0 = CrcInner::new(val, alloc);
+        assert_eq!(1, inner0.counter().load(Ordering::Relaxed));
+
+        let inner1 = inner0.clone();
+        assert_eq!(2, inner0.counter().load(Ordering::Relaxed));
+        assert_eq!(2, inner1.counter().load(Ordering::Relaxed));
+
+        let inner2 = CrcInner::into_any(inner0);
+        assert_eq!(2, inner1.counter().load(Ordering::Relaxed));
+        assert_eq!(2, inner2.counter().load(Ordering::Relaxed));
+
+        let inner3 = inner2.clone();
+        assert_eq!(3, inner1.counter().load(Ordering::Relaxed));
+        assert_eq!(3, inner2.counter().load(Ordering::Relaxed));
+        assert_eq!(3, inner3.counter().load(Ordering::Relaxed));
     }
 }
