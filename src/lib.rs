@@ -33,6 +33,7 @@
 
 //! # mouse-cache-alloc
 
+mod crc;
 mod vec;
 
 use core::alloc::{GlobalAlloc, Layout};
