@@ -31,7 +31,7 @@
 
 use core::alloc::{GlobalAlloc, Layout};
 use core::mem::size_of;
-use core::sync::atomic::AtomicUsize;
+use core::sync::atomic::{AtomicUsize, Ordering};
 
 /// Bucket of `Crc` to allocate/deallocate memory for reference count and valu at once.
 ///
@@ -73,6 +73,30 @@ where
 {
     ptr: *mut T,
     alloc: A,
+}
+
+impl<T: ?Sized, A> Drop for CrcInner<T, A>
+where
+    A: GlobalAlloc,
+{
+    fn drop(&mut self) {
+        // Decrement the reference count.
+        let count = self.counter().fetch_sub(1, Ordering::Release) - 1;
+
+        // Do nothing if another instance is left.
+        if count != 0 {
+            return;
+        }
+
+        // Drop and deallocate.
+        let layout = self.layout();
+        let ptr = self.bucket_ptr();
+
+        unsafe {
+            self.ptr.drop_in_place();
+            self.alloc.dealloc(ptr, layout);
+        };
+    }
 }
 
 impl<T: ?Sized, A> CrcInner<T, A>
