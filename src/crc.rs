@@ -30,7 +30,8 @@
 // limitations under the License.
 
 use core::alloc::{GlobalAlloc, Layout};
-use core::mem::size_of;
+use core::any::Any;
+use core::mem::{forget, size_of, MaybeUninit};
 use core::sync::atomic::{AtomicUsize, Ordering};
 use std::alloc::handle_alloc_error;
 
@@ -128,6 +129,24 @@ where
         debug_assert_eq!(layout, ret.layout());
         ret
     }
+
+    /// Consumes `self` and convert type parameter `T` into `dyn Any` .
+    pub fn into_any(self) -> CrcInner<dyn Any, A>
+    where
+        T: 'static,
+    {
+        let alloc = unsafe {
+            let org: *const A = &self.alloc;
+            let mut alloc = MaybeUninit::<A>::uninit();
+            alloc.as_mut_ptr().copy_from_nonoverlapping(org, 1);
+            alloc.assume_init()
+        };
+
+        let ptr: *mut dyn Any = self.ptr;
+
+        forget(self);
+        CrcInner::<dyn Any, A> { ptr, alloc }
+    }
 }
 
 impl<T: ?Sized, A> CrcInner<T, A>
@@ -186,6 +205,18 @@ mod crcinner_tests {
         let val = TestBox::new(1, &alloc);
         let crc_inner = CrcInner::new(val, alloc.clone());
 
+        assert_eq!(1, crc_inner.counter().load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn into_any() {
+        let val = 1;
+        let alloc = TestAlloc::<System>::default();
+
+        let crc_inner = CrcInner::new(val, alloc.clone());
+        assert_eq!(1, crc_inner.counter().load(Ordering::Relaxed));
+
+        let crc_inner = CrcInner::into_any(crc_inner);
         assert_eq!(1, crc_inner.counter().load(Ordering::Relaxed));
     }
 }
