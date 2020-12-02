@@ -74,3 +74,17 @@ where
     ptr: *mut T,
     alloc: A,
 }
+
+impl<T: ?Sized, A> CrcInner<T, A>
+where
+    A: GlobalAlloc,
+{
+    /// Returns a reference to the reference counter.
+    pub fn counter(&self) -> &AtomicUsize {
+        unsafe {
+            let ptr: *const AtomicUsize = self.ptr.cast();
+            let ptr = ptr.sub(1);
+            &*ptr
+        }
+    }
+}
