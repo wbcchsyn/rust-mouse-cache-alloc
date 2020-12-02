@@ -32,6 +32,7 @@
 use core::alloc::{GlobalAlloc, Layout};
 use core::mem::size_of;
 use core::sync::atomic::{AtomicUsize, Ordering};
+use std::alloc::handle_alloc_error;
 
 /// Bucket of `Crc` to allocate/deallocate memory for reference count and valu at once.
 ///
@@ -99,6 +100,36 @@ where
     }
 }
 
+impl<T, A> CrcInner<T, A>
+where
+    A: GlobalAlloc,
+{
+    /// Creates a new instance.
+    pub fn new(val: T, alloc: A) -> Self {
+        // Allocate memory for Bucket.
+        let layout = Layout::new::<Bucket<T>>();
+        let ptr = unsafe {
+            let ptr = alloc.alloc(layout) as *mut Bucket<T>;
+            if ptr.is_null() {
+                handle_alloc_error(layout);
+            }
+
+            ptr
+        };
+
+        // Build bucket
+        let bucket = unsafe {
+            ptr.write(Bucket::from(val));
+            &mut *ptr
+        };
+
+        let ptr: *mut T = &mut bucket.val;
+        let ret = Self { ptr, alloc };
+        debug_assert_eq!(layout, ret.layout());
+        ret
+    }
+}
+
 impl<T: ?Sized, A> CrcInner<T, A>
 where
     A: GlobalAlloc,
@@ -137,5 +168,24 @@ where
 
             ptr.cast()
         }
+    }
+}
+
+#[cfg(test)]
+mod crcinner_tests {
+    extern crate gharial;
+
+    use super::*;
+    use gharial::{TestAlloc, TestBox};
+    use std::alloc::System;
+
+    #[test]
+    fn constructor() {
+        let alloc = TestAlloc::<System>::default();
+
+        let val = TestBox::new(1, &alloc);
+        let crc_inner = CrcInner::new(val, alloc.clone());
+
+        assert_eq!(1, crc_inner.counter().load(Ordering::Relaxed));
     }
 }
