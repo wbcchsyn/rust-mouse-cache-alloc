@@ -29,6 +29,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use core::mem::size_of;
 use core::sync::atomic::AtomicUsize;
 
 /// Bucket of `Crc` to allocate/deallocate memory for reference count and valu at once.
@@ -40,4 +41,14 @@ struct Bucket<T: ?Sized> {
     size: usize,
     count: AtomicUsize,
     val: T,
+}
+
+impl<T> From<T> for Bucket<T> {
+    fn from(val: T) -> Self {
+        Self {
+            size: size_of::<Self>(),
+            count: AtomicUsize::new(1),
+            val,
+        }
+    }
 }
