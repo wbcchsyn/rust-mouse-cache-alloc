@@ -101,4 +101,17 @@ where
             Layout::from_size_align_unchecked(size, core::mem::align_of::<usize>())
         }
     }
+
+    /// Returns a pointer to the bucket to be allocated.
+    fn bucket_ptr(&mut self) -> *mut u8 {
+        unsafe {
+            let ptr: *mut AtomicUsize = self.ptr.cast();
+            let ptr = ptr.sub(1);
+
+            let ptr: *mut usize = ptr.cast();
+            let ptr = ptr.sub(1);
+
+            ptr.cast()
+        }
+    }
 }
