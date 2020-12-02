@@ -28,3 +28,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+use core::sync::atomic::AtomicUsize;
+
+/// Bucket of `Crc` to allocate/deallocate memory for reference count and valu at once.
+///
+/// Property `Bucket::size` is same to `Bucket<T>` when `T` is `Sized` .
+/// The align of `Bucket` is same to that of `usize` .
+#[repr(C)]
+struct Bucket<T: ?Sized> {
+    size: usize,
+    count: AtomicUsize,
+    val: T,
+}
