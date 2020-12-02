@@ -29,7 +29,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use core::alloc::GlobalAlloc;
+use core::alloc::{GlobalAlloc, Layout};
 use core::mem::size_of;
 use core::sync::atomic::AtomicUsize;
 
@@ -85,6 +85,20 @@ where
             let ptr: *const AtomicUsize = self.ptr.cast();
             let ptr = ptr.sub(1);
             &*ptr
+        }
+    }
+
+    /// Returns a layout to have allocated the heap.
+    fn layout(&self) -> Layout {
+        unsafe {
+            let ptr: *const AtomicUsize = self.ptr.cast();
+            let ptr = ptr.sub(1);
+
+            let ptr: *const usize = ptr.cast();
+            let ptr = ptr.sub(1);
+            let size = *ptr;
+
+            Layout::from_size_align_unchecked(size, core::mem::align_of::<usize>())
         }
     }
 }
