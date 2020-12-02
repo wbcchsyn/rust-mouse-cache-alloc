@@ -29,6 +29,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use core::alloc::GlobalAlloc;
 use core::mem::size_of;
 use core::sync::atomic::AtomicUsize;
 
@@ -51,4 +52,25 @@ impl<T> From<T> for Bucket<T> {
             val,
         }
     }
+}
+
+/// `CrcInner` is for `Crc` .
+///
+/// It behaves like `std::sync::Arc` except for the followings.
+///
+/// - `CrcInner` supports only strong pointer, but not weak pointer.
+/// - `CrcInner` takes allocator as template parameter to allocate/deallocate heap memory.
+///
+/// # Warnings
+///
+/// Heap is allocated when created first via the property `alloc` , and the memory will be shared
+/// among cloned instance. It will be deallocated when the last cloned instance is dropped using
+/// the `alloc` . i.e. The allocator is not always the very same to allocate and to deallocate the
+/// pointer.
+struct CrcInner<T: ?Sized, A>
+where
+    A: GlobalAlloc,
+{
+    ptr: *mut T,
+    alloc: A,
 }
