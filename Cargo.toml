@@ -9,3 +9,6 @@ edition = "2018"
 license = "LGPL-3.0-or-later OR Apache-2.0"
 
 [dependencies]
+
+[dev-dependencies]
+gharial = "0.1"
