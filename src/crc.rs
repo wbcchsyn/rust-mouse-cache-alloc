@@ -33,6 +33,7 @@ use crate::Alloc;
 use core::alloc::{GlobalAlloc, Layout};
 use core::any::Any;
 use core::mem::{forget, size_of, MaybeUninit};
+use core::ops::Deref;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use std::alloc::handle_alloc_error;
 
@@ -284,6 +285,13 @@ impl<T> Crc<T> {
     }
 }
 
+impl<T: ?Sized> Deref for Crc<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.0.ptr }
+    }
+}
+
 #[cfg(test)]
 mod crc_tests {
     extern crate gharial;
@@ -304,5 +312,12 @@ mod crc_tests {
         let val = 5;
         let crc = Crc::from(val);
         let _crc = Crc::into_any(crc);
+    }
+
+    #[test]
+    fn deref() {
+        let val = -1892;
+        let crc = Crc::from(val);
+        assert_eq!(val, *crc);
     }
 }
