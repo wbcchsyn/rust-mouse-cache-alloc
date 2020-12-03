@@ -36,6 +36,7 @@ use core::mem::{forget, size_of, MaybeUninit};
 use core::ops::Deref;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use std::alloc::handle_alloc_error;
+use std::borrow::Borrow;
 
 /// Bucket of `Crc` to allocate/deallocate memory for reference count and valu at once.
 ///
@@ -294,6 +295,12 @@ impl<T: ?Sized> Deref for Crc<T> {
 
 impl<T: ?Sized> AsRef<T> for Crc<T> {
     fn as_ref(&self) -> &T {
+        &*self
+    }
+}
+
+impl<T: ?Sized> Borrow<T> for Crc<T> {
+    fn borrow(&self) -> &T {
         &*self
     }
 }
