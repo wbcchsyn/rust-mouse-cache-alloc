@@ -40,6 +40,7 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 use std::alloc::handle_alloc_error;
 use std::borrow::Borrow;
 use std::fmt;
+use std::panic::{RefUnwindSafe, UnwindSafe};
 
 /// Bucket of `Crc` to allocate/deallocate memory for reference count and valu at once.
 ///
@@ -369,6 +370,8 @@ where
 
 unsafe impl<T: ?Sized> Send for Crc<T> where T: Send + Sync {}
 unsafe impl<T: ?Sized> Sync for Crc<T> where T: Send + Sync {}
+
+impl<T: ?Sized> UnwindSafe for Crc<T> where T: RefUnwindSafe {}
 
 impl<T: ?Sized> Crc<T> {
     /// Provides a raw pointer to the data.
