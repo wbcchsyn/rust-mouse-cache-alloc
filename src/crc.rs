@@ -305,6 +305,13 @@ impl<T: ?Sized> Borrow<T> for Crc<T> {
     }
 }
 
+impl<T: ?Sized> Crc<T> {
+    /// Provides a raw pointer to the data.
+    pub fn as_ptr(&self) -> *const T {
+        self.0.ptr
+    }
+}
+
 #[cfg(test)]
 mod crc_tests {
     extern crate gharial;
