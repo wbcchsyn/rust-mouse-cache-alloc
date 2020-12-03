@@ -313,6 +313,18 @@ impl<T: ?Sized> fmt::Pointer for Crc<T> {
     }
 }
 
+impl<T: ?Sized> fmt::Debug for Crc<T>
+where
+    T: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        f.debug_struct("Crc")
+            .field("pointer", &&*self)
+            .field("strong_count", &self.strong_count())
+            .finish()
+    }
+}
+
 impl<T: ?Sized> Crc<T> {
     /// Provides a raw pointer to the data.
     pub fn as_ptr(&self) -> *const T {
