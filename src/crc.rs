@@ -292,6 +292,12 @@ impl<T: ?Sized> Deref for Crc<T> {
     }
 }
 
+impl<T: ?Sized> AsRef<T> for Crc<T> {
+    fn as_ref(&self) -> &T {
+        &*self
+    }
+}
+
 #[cfg(test)]
 mod crc_tests {
     extern crate gharial;
