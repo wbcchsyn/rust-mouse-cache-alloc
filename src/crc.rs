@@ -268,6 +268,27 @@ mod crcinner_tests {
         drop(inner2);
         assert_eq!(1, inner1.counter().load(Ordering::Relaxed));
     }
+
+    #[test]
+    fn into_from_raw() {
+        let alloc = TestAlloc::<System>::default();
+        let val = TestBox::new(32, &alloc);
+
+        let inner0 = CrcInner::new(val, alloc.clone());
+        assert_eq!(1, inner0.counter().load(Ordering::Relaxed));
+
+        let inner1 = inner0.clone();
+        assert_eq!(2, inner0.counter().load(Ordering::Relaxed));
+        assert_eq!(2, inner1.counter().load(Ordering::Relaxed));
+
+        let (ptr, alloc) = unsafe { CrcInner::into_raw(inner1) };
+        let ptr: *const dyn AsRef<i32> = ptr;
+        assert_eq!(2, inner0.counter().load(Ordering::Relaxed));
+
+        let inner2 = unsafe { CrcInner::from_raw(ptr, alloc) };
+        assert_eq!(2, inner0.counter().load(Ordering::Relaxed));
+        assert_eq!(2, inner2.counter().load(Ordering::Relaxed));
+    }
 }
 
 /// `Crc` is a reference-counting pointer to allocate and to deallocate via `crate::Alloc` .
