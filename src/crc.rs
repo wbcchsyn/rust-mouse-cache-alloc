@@ -34,6 +34,7 @@ use core::alloc::{GlobalAlloc, Layout};
 use core::hash::{Hash, Hasher};
 use core::mem::size_of;
 use core::ops::Deref;
+use core::ptr::NonNull;
 use core::result::Result;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use std::alloc::handle_alloc_error;
@@ -79,7 +80,7 @@ struct CrcInner<T: ?Sized, A>
 where
     A: GlobalAlloc,
 {
-    ptr: *mut T,
+    ptr: NonNull<T>,
     alloc: A,
 }
 
@@ -101,7 +102,7 @@ where
         let ptr = self.bucket_ptr();
 
         unsafe {
-            self.ptr.drop_in_place();
+            self.ptr.as_ptr().drop_in_place();
             self.alloc.dealloc(ptr, layout);
         };
     }
@@ -130,7 +131,7 @@ where
             &mut *ptr
         };
 
-        let ptr: *mut T = &mut bucket.val;
+        let ptr = unsafe { NonNull::new_unchecked(&mut bucket.val) };
         let ret = Self { ptr, alloc };
         debug_assert_eq!(layout, ret.layout());
         ret
@@ -157,7 +158,7 @@ where
     /// Returns a reference to the reference counter.
     pub fn counter(&self) -> &AtomicUsize {
         unsafe {
-            let ptr: *const AtomicUsize = self.ptr.cast();
+            let ptr: *const AtomicUsize = self.ptr.as_ptr().cast();
             let ptr = ptr.sub(1);
             &*ptr
         }
@@ -166,7 +167,7 @@ where
     /// Returns a layout to have allocated the heap.
     fn layout(&self) -> Layout {
         unsafe {
-            let ptr: *const AtomicUsize = self.ptr.cast();
+            let ptr: *const AtomicUsize = self.ptr.as_ptr().cast();
             let ptr = ptr.sub(1);
 
             let ptr: *const usize = ptr.cast();
@@ -180,7 +181,7 @@ where
     /// Returns a pointer to the bucket to be allocated.
     fn bucket_ptr(&mut self) -> *mut u8 {
         unsafe {
-            let ptr: *mut AtomicUsize = self.ptr.cast();
+            let ptr: *mut AtomicUsize = self.ptr.as_ptr().cast();
             let ptr = ptr.sub(1);
 
             let ptr: *mut usize = ptr.cast();
@@ -254,7 +255,7 @@ impl<T> From<T> for Crc<T> {
 impl<T: ?Sized> Deref for Crc<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
-        unsafe { &*self.0.ptr }
+        unsafe { self.0.ptr.as_ref() }
     }
 }
 
@@ -337,7 +338,7 @@ impl<T: ?Sized> UnwindSafe for Crc<T> where T: RefUnwindSafe {}
 impl<T: ?Sized> Crc<T> {
     /// Provides a raw pointer to the data.
     pub fn as_ptr(&self) -> *const T {
-        self.0.ptr
+        self.0.ptr.as_ptr()
     }
 
     /// Returns the number of strong pointers to this allocation.
