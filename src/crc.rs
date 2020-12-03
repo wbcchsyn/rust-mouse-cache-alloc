@@ -31,10 +31,10 @@
 
 use crate::Alloc;
 use core::alloc::{GlobalAlloc, Layout};
-use core::any::Any;
 use core::hash::{Hash, Hasher};
 use core::mem::{forget, size_of, MaybeUninit};
 use core::ops::Deref;
+use core::ptr::NonNull;
 use core::result::Result;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use std::alloc::handle_alloc_error;
@@ -80,7 +80,7 @@ struct CrcInner<T: ?Sized, A>
 where
     A: GlobalAlloc,
 {
-    ptr: *mut T,
+    ptr: NonNull<T>,
     alloc: A,
 }
 
@@ -102,7 +102,7 @@ where
         let ptr = self.bucket_ptr();
 
         unsafe {
-            self.ptr.drop_in_place();
+            self.ptr.as_ptr().drop_in_place();
             self.alloc.dealloc(ptr, layout);
         };
     }
@@ -131,28 +131,10 @@ where
             &mut *ptr
         };
 
-        let ptr: *mut T = &mut bucket.val;
+        let ptr = unsafe { NonNull::new_unchecked(&mut bucket.val) };
         let ret = Self { ptr, alloc };
         debug_assert_eq!(layout, ret.layout());
         ret
-    }
-
-    /// Consumes `self` and convert type parameter `T` into `dyn Any` .
-    pub fn into_any(self) -> CrcInner<dyn Any, A>
-    where
-        T: 'static,
-    {
-        let alloc = unsafe {
-            let org: *const A = &self.alloc;
-            let mut alloc = MaybeUninit::<A>::uninit();
-            alloc.as_mut_ptr().copy_from_nonoverlapping(org, 1);
-            alloc.assume_init()
-        };
-
-        let ptr: *mut dyn Any = self.ptr;
-
-        forget(self);
-        CrcInner::<dyn Any, A> { ptr, alloc }
     }
 }
 
@@ -173,10 +155,44 @@ impl<T: ?Sized, A> CrcInner<T, A>
 where
     A: GlobalAlloc,
 {
+    /// Consumes `self` and returns a pair of a wrapped pointer and the allocator.
+    ///
+    /// # Safety
+    ///
+    /// To avoid memory leak, the returned pointer must be converted back to `CrcInner` using
+    /// `CrcInner::from_raw` .
+    pub unsafe fn into_raw(self) -> (*const T, A) {
+        let ptr = self.ptr.as_ptr();
+
+        let alloc = {
+            let mut alloc = MaybeUninit::uninit();
+            let ptr: *const A = &self.alloc;
+            core::ptr::copy_nonoverlapping(ptr, alloc.as_mut_ptr(), 1);
+            alloc.assume_init()
+        };
+
+        forget(self);
+        (ptr, alloc)
+    }
+
+    /// Constructs an `Crc` from raw pointer and allocator.
+    ///
+    /// `ptr` and `alloc` must have been previously returned by a call to `CrcInner<U>::into_raw`
+    /// where `U` must have the same size and alignment as `T` .
+    ///
+    /// # Safety
+    ///
+    /// The behavior is undefined if `ptr` and `alloc` does not satisfy the requirement.
+    pub unsafe fn from_raw(ptr: *const T, alloc: A) -> Self {
+        let r = &*ptr;
+        let ptr = NonNull::from(r);
+        Self { ptr, alloc }
+    }
+
     /// Returns a reference to the reference counter.
     pub fn counter(&self) -> &AtomicUsize {
         unsafe {
-            let ptr: *const AtomicUsize = self.ptr.cast();
+            let ptr: *const AtomicUsize = self.ptr.as_ptr().cast();
             let ptr = ptr.sub(1);
             &*ptr
         }
@@ -185,7 +201,7 @@ where
     /// Returns a layout to have allocated the heap.
     fn layout(&self) -> Layout {
         unsafe {
-            let ptr: *const AtomicUsize = self.ptr.cast();
+            let ptr: *const AtomicUsize = self.ptr.as_ptr().cast();
             let ptr = ptr.sub(1);
 
             let ptr: *const usize = ptr.cast();
@@ -199,7 +215,7 @@ where
     /// Returns a pointer to the bucket to be allocated.
     fn bucket_ptr(&mut self) -> *mut u8 {
         unsafe {
-            let ptr: *mut AtomicUsize = self.ptr.cast();
+            let ptr: *mut AtomicUsize = self.ptr.as_ptr().cast();
             let ptr = ptr.sub(1);
 
             let ptr: *mut usize = ptr.cast();
@@ -229,37 +245,49 @@ mod crcinner_tests {
     }
 
     #[test]
-    fn into_any() {
-        let val = 1;
-        let alloc = TestAlloc::<System>::default();
-
-        let crc_inner = CrcInner::new(val, alloc.clone());
-        assert_eq!(1, crc_inner.counter().load(Ordering::Relaxed));
-
-        let crc_inner = CrcInner::into_any(crc_inner);
-        assert_eq!(1, crc_inner.counter().load(Ordering::Relaxed));
-    }
-
-    #[test]
     fn clone() {
-        let val = 0;
         let alloc = TestAlloc::<System>::default();
+        let val = TestAlloc::<System>::default();
 
-        let inner0 = CrcInner::new(val, alloc);
+        let inner0 = CrcInner::new(val, alloc.clone());
         assert_eq!(1, inner0.counter().load(Ordering::Relaxed));
 
         let inner1 = inner0.clone();
         assert_eq!(2, inner0.counter().load(Ordering::Relaxed));
         assert_eq!(2, inner1.counter().load(Ordering::Relaxed));
 
-        let inner2 = CrcInner::into_any(inner0);
+        let inner2 = inner1.clone();
+        assert_eq!(3, inner0.counter().load(Ordering::Relaxed));
+        assert_eq!(3, inner1.counter().load(Ordering::Relaxed));
+        assert_eq!(3, inner2.counter().load(Ordering::Relaxed));
+
+        drop(inner0);
         assert_eq!(2, inner1.counter().load(Ordering::Relaxed));
         assert_eq!(2, inner2.counter().load(Ordering::Relaxed));
 
-        let inner3 = inner2.clone();
-        assert_eq!(3, inner1.counter().load(Ordering::Relaxed));
-        assert_eq!(3, inner2.counter().load(Ordering::Relaxed));
-        assert_eq!(3, inner3.counter().load(Ordering::Relaxed));
+        drop(inner2);
+        assert_eq!(1, inner1.counter().load(Ordering::Relaxed));
+    }
+
+    #[test]
+    fn into_from_raw() {
+        let alloc = TestAlloc::<System>::default();
+        let val = TestBox::new(32, &alloc);
+
+        let inner0 = CrcInner::new(val, alloc.clone());
+        assert_eq!(1, inner0.counter().load(Ordering::Relaxed));
+
+        let inner1 = inner0.clone();
+        assert_eq!(2, inner0.counter().load(Ordering::Relaxed));
+        assert_eq!(2, inner1.counter().load(Ordering::Relaxed));
+
+        let (ptr, alloc) = unsafe { CrcInner::into_raw(inner1) };
+        let ptr: *const dyn AsRef<i32> = ptr;
+        assert_eq!(2, inner0.counter().load(Ordering::Relaxed));
+
+        let inner2 = unsafe { CrcInner::from_raw(ptr, alloc) };
+        assert_eq!(2, inner0.counter().load(Ordering::Relaxed));
+        assert_eq!(2, inner2.counter().load(Ordering::Relaxed));
     }
 }
 
@@ -279,21 +307,10 @@ impl<T> From<T> for Crc<T> {
     }
 }
 
-impl<T> Crc<T> {
-    /// Consumes `self` and creates a new `Crc<dyn Any>` instance.
-    /// This method works as type parameter comberter.
-    pub fn into_any(self) -> Crc<dyn Any>
-    where
-        T: 'static,
-    {
-        Crc::<dyn Any>(CrcInner::into_any(self.0))
-    }
-}
-
 impl<T: ?Sized> Deref for Crc<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
-        unsafe { &*self.0.ptr }
+        unsafe { self.0.ptr.as_ref() }
     }
 }
 
@@ -374,9 +391,31 @@ unsafe impl<T: ?Sized> Sync for Crc<T> where T: Send + Sync {}
 impl<T: ?Sized> UnwindSafe for Crc<T> where T: RefUnwindSafe {}
 
 impl<T: ?Sized> Crc<T> {
+    /// Consumes `self` and returns a wrapped pointer.
+    ///
+    /// # Safety
+    ///
+    /// To avoid memory leak, the returned pointer must be converted back to `CrcInner` using
+    /// `CrcInner::from_raw` .
+    pub unsafe fn into_raw(self) -> *const T {
+        CrcInner::into_raw(self.0).0
+    }
+
+    /// Constructs an `Crc` from a raw pointer.
+    ///
+    /// `ptr` must have been previously returned by a call to `Crc<U>::into_raw` where `U` must
+    /// have the same size and alignment as `T` .
+    ///
+    /// # Safety
+    ///
+    /// The behavior is undefined if `ptr` does not satisfy the requirement.
+    pub unsafe fn from_raw(ptr: *const T) -> Self {
+        Self(CrcInner::from_raw(ptr, Alloc))
+    }
+
     /// Provides a raw pointer to the data.
     pub fn as_ptr(&self) -> *const T {
-        self.0.ptr
+        self.0.ptr.as_ptr()
     }
 
     /// Returns the number of strong pointers to this allocation.
@@ -401,10 +440,24 @@ mod crc_tests {
     }
 
     #[test]
-    fn into_any() {
-        let val = 5;
-        let crc = Crc::from(val);
-        let _crc = Crc::into_any(crc);
+    fn from_into_raw() {
+        let alloc = TestAlloc::<System>::default();
+        let val = TestBox::new(3, &alloc);
+
+        let crc0 = Crc::from(val);
+        assert_eq!(1, crc0.strong_count());
+
+        let crc1 = crc0.clone();
+        assert_eq!(2, crc0.strong_count());
+        assert_eq!(2, crc1.strong_count());
+
+        let ptr = unsafe { Crc::into_raw(crc0) };
+        assert_eq!(2, crc1.strong_count());
+
+        let ptr = ptr as *const dyn AsRef<i32>;
+        let crc2 = unsafe { Crc::from_raw(ptr) };
+        assert_eq!(2, crc1.strong_count());
+        assert_eq!(2, crc2.strong_count());
     }
 
     #[test]
