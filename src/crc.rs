@@ -32,6 +32,7 @@
 use crate::Alloc;
 use core::alloc::{GlobalAlloc, Layout};
 use core::any::Any;
+use core::hash::{Hash, Hasher};
 use core::mem::{forget, size_of, MaybeUninit};
 use core::ops::Deref;
 use core::result::Result;
@@ -351,6 +352,18 @@ where
 {
     fn cmp(&self, other: &Self) -> core::cmp::Ordering {
         self.as_ref().cmp(other.as_ref())
+    }
+}
+
+impl<T: ?Sized> Hash for Crc<T>
+where
+    T: Hash,
+{
+    fn hash<H>(&self, hasher: &mut H)
+    where
+        H: Hasher,
+    {
+        self.as_ref().hash(hasher)
     }
 }
 
