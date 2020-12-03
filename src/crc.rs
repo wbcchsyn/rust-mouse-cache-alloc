@@ -34,9 +34,11 @@ use core::alloc::{GlobalAlloc, Layout};
 use core::any::Any;
 use core::mem::{forget, size_of, MaybeUninit};
 use core::ops::Deref;
+use core::result::Result;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use std::alloc::handle_alloc_error;
 use std::borrow::Borrow;
+use std::fmt;
 
 /// Bucket of `Crc` to allocate/deallocate memory for reference count and valu at once.
 ///
@@ -302,6 +304,12 @@ impl<T: ?Sized> AsRef<T> for Crc<T> {
 impl<T: ?Sized> Borrow<T> for Crc<T> {
     fn borrow(&self) -> &T {
         &*self
+    }
+}
+
+impl<T: ?Sized> fmt::Pointer for Crc<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        self.0.ptr.fmt(f)
     }
 }
 
