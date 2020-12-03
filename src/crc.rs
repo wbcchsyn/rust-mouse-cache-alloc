@@ -264,6 +264,7 @@ mod crcinner_tests {
 ///
 /// - `Crc` supports only strong pointer, but not weak pointer.
 /// - `Crc` uses `crate::Alloc` to allocate and to deallocate heap memory.
+#[derive(Clone)]
 pub struct Crc<T: ?Sized>(CrcInner<T, Alloc>);
 
 impl<T> From<T> for Crc<T> {
