@@ -325,6 +325,17 @@ where
     }
 }
 
+impl<T: ?Sized, U: ?Sized> PartialEq<Crc<U>> for Crc<T>
+where
+    T: PartialEq<U>,
+{
+    fn eq(&self, other: &Crc<U>) -> bool {
+        self.as_ref().eq(other.as_ref())
+    }
+}
+
+impl<T: ?Sized> Eq for Crc<T> where T: Eq {}
+
 unsafe impl<T: ?Sized> Send for Crc<T> where T: Send + Sync {}
 unsafe impl<T: ?Sized> Sync for Crc<T> where T: Send + Sync {}
 
@@ -367,5 +378,17 @@ mod crc_tests {
         let val = -1892;
         let crc = Crc::from(val);
         assert_eq!(val, *crc);
+    }
+
+    #[test]
+    fn eq() {
+        let val = 45;
+        let crc0 = Crc::from(val);
+        let crc1 = Crc::from(val);
+        assert_eq!(crc0, crc1);
+
+        let val = 13;
+        let crc2 = Crc::from(val);
+        assert_ne!(crc0, crc2);
     }
 }
