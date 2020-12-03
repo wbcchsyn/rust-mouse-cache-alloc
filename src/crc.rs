@@ -272,6 +272,17 @@ impl<T> From<T> for Crc<T> {
     }
 }
 
+impl<T> Crc<T> {
+    /// Consumes `self` and creates a new `Crc<dyn Any>` instance.
+    /// This method works as type parameter comberter.
+    pub fn into_any(self) -> Crc<dyn Any>
+    where
+        T: 'static,
+    {
+        Crc::<dyn Any>(CrcInner::into_any(self.0))
+    }
+}
+
 #[cfg(test)]
 mod crc_tests {
     extern crate gharial;
@@ -285,5 +296,12 @@ mod crc_tests {
         let alloc = TestAlloc::<System>::default();
         let val = TestBox::new(3, &alloc);
         let _crc = Crc::from(val);
+    }
+
+    #[test]
+    fn into_any() {
+        let val = 5;
+        let crc = Crc::from(val);
+        let _crc = Crc::into_any(crc);
     }
 }
