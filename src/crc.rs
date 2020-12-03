@@ -401,6 +401,18 @@ impl<T: ?Sized> Crc<T> {
         CrcInner::into_raw(self.0).0
     }
 
+    /// Constructs an `Crc` from a raw pointer.
+    ///
+    /// `ptr` must have been previously returned by a call to `Crc<U>::into_raw` where `U` must
+    /// have the same size and alignment as `T` .
+    ///
+    /// # Safety
+    ///
+    /// The behavior is undefined if `ptr` does not satisfy the requirement.
+    pub unsafe fn from_raw(ptr: *const T) -> Self {
+        Self(CrcInner::from_raw(ptr, Alloc))
+    }
+
     /// Provides a raw pointer to the data.
     pub fn as_ptr(&self) -> *const T {
         self.0.ptr.as_ptr()
