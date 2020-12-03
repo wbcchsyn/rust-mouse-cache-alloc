@@ -175,6 +175,20 @@ where
         (ptr, alloc)
     }
 
+    /// Constructs an `Crc` from raw pointer and allocator.
+    ///
+    /// `ptr` and `alloc` must have been previously returned by a call to `CrcInner<U>::into_raw`
+    /// where `U` must have the same size and alignment as `T` .
+    ///
+    /// # Safety
+    ///
+    /// The behavior is undefined if `ptr` and `alloc` does not satisfy the requirement.
+    pub unsafe fn from_raw(ptr: *const T, alloc: A) -> Self {
+        let r = &*ptr;
+        let ptr = NonNull::from(r);
+        Self { ptr, alloc }
+    }
+
     /// Returns a reference to the reference counter.
     pub fn counter(&self) -> &AtomicUsize {
         unsafe {
