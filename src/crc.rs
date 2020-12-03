@@ -336,6 +336,24 @@ where
 
 impl<T: ?Sized> Eq for Crc<T> where T: Eq {}
 
+impl<T: ?Sized, U: ?Sized> PartialOrd<Crc<U>> for Crc<T>
+where
+    T: PartialOrd<U>,
+{
+    fn partial_cmp(&self, other: &Crc<U>) -> Option<core::cmp::Ordering> {
+        self.as_ref().partial_cmp(other.as_ref())
+    }
+}
+
+impl<T: ?Sized> Ord for Crc<T>
+where
+    T: Ord,
+{
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.as_ref().cmp(other.as_ref())
+    }
+}
+
 unsafe impl<T: ?Sized> Send for Crc<T> where T: Send + Sync {}
 unsafe impl<T: ?Sized> Sync for Crc<T> where T: Send + Sync {}
 
@@ -390,5 +408,17 @@ mod crc_tests {
         let val = 13;
         let crc2 = Crc::from(val);
         assert_ne!(crc0, crc2);
+    }
+
+    #[test]
+    fn cmp() {
+        let crc0 = Crc::from(-1);
+        let crc1 = Crc::from(0);
+        let crc2 = Crc::from(1);
+        let crc3 = Crc::from(2);
+
+        assert!(crc0 < crc1);
+        assert!(crc1 < crc2);
+        assert!(crc2 < crc3);
     }
 }
