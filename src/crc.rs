@@ -440,6 +440,27 @@ mod crc_tests {
     }
 
     #[test]
+    fn from_into_raw() {
+        let alloc = TestAlloc::<System>::default();
+        let val = TestBox::new(3, &alloc);
+
+        let crc0 = Crc::from(val);
+        assert_eq!(1, crc0.strong_count());
+
+        let crc1 = crc0.clone();
+        assert_eq!(2, crc0.strong_count());
+        assert_eq!(2, crc1.strong_count());
+
+        let ptr = unsafe { Crc::into_raw(crc0) };
+        assert_eq!(2, crc1.strong_count());
+
+        let ptr = ptr as *const dyn AsRef<i32>;
+        let crc2 = unsafe { Crc::from_raw(ptr) };
+        assert_eq!(2, crc1.strong_count());
+        assert_eq!(2, crc2.strong_count());
+    }
+
+    #[test]
     fn deref() {
         let val = -1892;
         let crc = Crc::from(val);
