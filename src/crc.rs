@@ -391,6 +391,16 @@ unsafe impl<T: ?Sized> Sync for Crc<T> where T: Send + Sync {}
 impl<T: ?Sized> UnwindSafe for Crc<T> where T: RefUnwindSafe {}
 
 impl<T: ?Sized> Crc<T> {
+    /// Consumes `self` and returns a wrapped pointer.
+    ///
+    /// # Safety
+    ///
+    /// To avoid memory leak, the returned pointer must be converted back to `CrcInner` using
+    /// `CrcInner::from_raw` .
+    pub unsafe fn into_raw(self) -> *const T {
+        CrcInner::into_raw(self.0).0
+    }
+
     /// Provides a raw pointer to the data.
     pub fn as_ptr(&self) -> *const T {
         self.0.ptr.as_ptr()
