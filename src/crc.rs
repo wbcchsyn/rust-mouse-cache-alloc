@@ -310,6 +310,11 @@ impl<T: ?Sized> Crc<T> {
     pub fn as_ptr(&self) -> *const T {
         self.0.ptr
     }
+
+    /// Returns the number of strong pointers to this allocation.
+    pub fn strong_count(&self) -> usize {
+        self.0.counter().load(Ordering::Relaxed)
+    }
 }
 
 #[cfg(test)]
