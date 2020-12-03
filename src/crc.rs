@@ -265,3 +265,25 @@ mod crcinner_tests {
 /// - `Crc` supports only strong pointer, but not weak pointer.
 /// - `Crc` uses `crate::Alloc` to allocate and to deallocate heap memory.
 pub struct Crc<T: ?Sized>(CrcInner<T, Alloc>);
+
+impl<T> From<T> for Crc<T> {
+    fn from(val: T) -> Self {
+        Self(CrcInner::new(val, Alloc))
+    }
+}
+
+#[cfg(test)]
+mod crc_tests {
+    extern crate gharial;
+
+    use super::*;
+    use gharial::{TestAlloc, TestBox};
+    use std::alloc::System;
+
+    #[test]
+    fn from() {
+        let alloc = TestAlloc::<System>::default();
+        let val = TestBox::new(3, &alloc);
+        let _crc = Crc::from(val);
+    }
+}
