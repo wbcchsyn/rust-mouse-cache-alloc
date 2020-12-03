@@ -32,7 +32,7 @@
 use crate::Alloc;
 use core::alloc::{GlobalAlloc, Layout};
 use core::hash::{Hash, Hasher};
-use core::mem::size_of;
+use core::mem::{forget, size_of, MaybeUninit};
 use core::ops::Deref;
 use core::ptr::NonNull;
 use core::result::Result;
@@ -155,6 +155,26 @@ impl<T: ?Sized, A> CrcInner<T, A>
 where
     A: GlobalAlloc,
 {
+    /// Consumes `self` and returns a pair of a wrapped pointer and the allocator.
+    ///
+    /// # Safety
+    ///
+    /// To avoid memory leak, the returned pointer must be converted back to `CrcInner` using
+    /// `CrcInner::from_raw` .
+    pub unsafe fn into_raw(self) -> (*const T, A) {
+        let ptr = self.ptr.as_ptr();
+
+        let alloc = {
+            let mut alloc = MaybeUninit::uninit();
+            let ptr: *const A = &self.alloc;
+            core::ptr::copy_nonoverlapping(ptr, alloc.as_mut_ptr(), 1);
+            alloc.assume_init()
+        };
+
+        forget(self);
+        (ptr, alloc)
+    }
+
     /// Returns a reference to the reference counter.
     pub fn counter(&self) -> &AtomicUsize {
         unsafe {
