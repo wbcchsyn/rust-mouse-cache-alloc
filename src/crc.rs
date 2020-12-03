@@ -29,6 +29,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::Alloc;
 use core::alloc::{GlobalAlloc, Layout};
 use core::any::Any;
 use core::mem::{forget, size_of, MaybeUninit};
@@ -255,3 +256,12 @@ mod crcinner_tests {
         assert_eq!(3, inner3.counter().load(Ordering::Relaxed));
     }
 }
+
+/// `Crc` is a reference-counting pointer to allocate and to deallocate via `crate::Alloc` .
+/// `Crc` stands for 'Cache Reference Counted'.
+///
+/// It behaves like `std::sync::Arc` except for the followings.
+///
+/// - `Crc` supports only strong pointer, but not weak pointer.
+/// - `Crc` uses `crate::Alloc` to allocate and to deallocate heap memory.
+pub struct Crc<T: ?Sized>(CrcInner<T, Alloc>);
