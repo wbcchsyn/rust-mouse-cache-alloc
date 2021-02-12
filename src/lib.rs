@@ -240,3 +240,9 @@ extern "C" {
     #[cfg(unix)]
     fn malloc_usable_size(ptr: *const c_void) -> usize;
 }
+
+/// Implementation for `GlobalAlloc` to allocate/deallocate memory for cache.
+/// Unlike to [`Alloc`] , the backend of `MmapAlloc` is 'posix mmap'.
+///
+/// [`Alloc`]: struct.Alloc.html
+pub struct MmapAlloc(mmap_allocator::MmapAllocator);
