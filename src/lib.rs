@@ -246,3 +246,11 @@ extern "C" {
 ///
 /// [`Alloc`]: struct.Alloc.html
 pub struct MmapAlloc(mmap_allocator::MmapAllocator);
+
+impl MmapAlloc {
+    /// Creates a new instance.
+    #[inline]
+    pub const fn new() -> Self {
+        Self(mmap_allocator::MmapAllocator)
+    }
+}
