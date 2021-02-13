@@ -240,3 +240,77 @@ extern "C" {
     #[cfg(unix)]
     fn malloc_usable_size(ptr: *const c_void) -> usize;
 }
+
+/// Implementation for `GlobalAlloc` to allocate/deallocate memory for cache.
+/// Unlike to [`Alloc`] , the backend of `MmapAlloc` is 'posix mmap'.
+///
+/// [`Alloc`]: struct.Alloc.html
+pub struct MmapAlloc(mmap_allocator::MmapAllocator);
+
+impl MmapAlloc {
+    /// Creates a new instance.
+    #[inline]
+    pub const fn new() -> Self {
+        Self(mmap_allocator::MmapAllocator)
+    }
+}
+
+unsafe impl GlobalAlloc for MmapAlloc {
+    #[inline]
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let ptr = self.0.alloc(layout);
+
+        if !ptr.is_null() {
+            let allocating = (layout.size() + mmap_allocator::page_size() - 1)
+                / mmap_allocator::page_size()
+                * mmap_allocator::page_size();
+            SIZE_ALLOC.increase_size(allocating);
+        }
+
+        ptr
+    }
+
+    #[inline]
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        debug_assert_eq!(false, ptr.is_null());
+        self.0.dealloc(ptr, layout);
+
+        let deallocating = (layout.size() + mmap_allocator::page_size() - 1)
+            / mmap_allocator::page_size()
+            * mmap_allocator::page_size();
+        SIZE_ALLOC.decrease_size(deallocating);
+    }
+
+    #[inline]
+    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        let ptr = self.0.realloc(ptr, layout, new_size);
+
+        let allocating = (new_size + mmap_allocator::page_size() - 1) / mmap_allocator::page_size()
+            * mmap_allocator::page_size();
+        let deallocating = (layout.size() + mmap_allocator::page_size() - 1)
+            / mmap_allocator::page_size()
+            * mmap_allocator::page_size();
+
+        if allocating < deallocating {
+            SIZE_ALLOC.decrease_size(deallocating - allocating);
+        } else {
+            SIZE_ALLOC.increase_size(allocating - deallocating);
+        }
+
+        ptr
+    }
+
+    #[inline]
+    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
+        let ptr = self.0.alloc_zeroed(layout);
+
+        if !ptr.is_null() {
+            let allocating = (layout.size() + mmap_allocator::page_size() - 1)
+                / mmap_allocator::page_size()
+                * mmap_allocator::page_size();
+            SIZE_ALLOC.increase_size(allocating);
+        }
+
+        ptr
+    }
+}
