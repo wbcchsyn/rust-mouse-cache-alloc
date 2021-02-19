@@ -83,6 +83,19 @@ pub fn decrease_cache_size(bytes: usize) -> usize {
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Alloc;
 
+impl Default for Alloc {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Alloc {
+    /// Creates a new instance.
+    pub const fn new() -> Self {
+        Self
+    }
+}
+
 unsafe impl GlobalAlloc for Alloc {
     #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
@@ -246,6 +259,12 @@ extern "C" {
 ///
 /// [`Alloc`]: struct.Alloc.html
 pub struct MmapAlloc(mmap_allocator::MmapAllocator);
+
+impl Default for MmapAlloc {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl MmapAlloc {
     /// Creates a new instance.
