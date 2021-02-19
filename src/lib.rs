@@ -260,6 +260,12 @@ extern "C" {
 /// [`Alloc`]: struct.Alloc.html
 pub struct MmapAlloc(mmap_allocator::MmapAllocator);
 
+impl Default for MmapAlloc {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MmapAlloc {
     /// Creates a new instance.
     #[inline]
