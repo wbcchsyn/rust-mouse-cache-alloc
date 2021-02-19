@@ -83,6 +83,12 @@ pub fn decrease_cache_size(bytes: usize) -> usize {
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Alloc;
 
+impl Default for Alloc {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Alloc {
     /// Creates a new instance.
     pub const fn new() -> Self {
