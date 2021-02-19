@@ -83,6 +83,13 @@ pub fn decrease_cache_size(bytes: usize) -> usize {
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Alloc;
 
+impl Alloc {
+    /// Creates a new instance.
+    pub const fn new() -> Self {
+        Self
+    }
+}
+
 unsafe impl GlobalAlloc for Alloc {
     #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
