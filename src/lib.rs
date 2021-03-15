@@ -81,22 +81,22 @@ pub fn decrease_cache_size(bytes: usize) -> usize {
 
 /// Implementation for `GlobalAlloc` to allocate/deallocate memory for cache.
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
-pub struct Alloc;
+pub struct CAlloc;
 
-impl Default for Alloc {
+impl Default for CAlloc {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Alloc {
+impl CAlloc {
     /// Creates a new instance.
     pub const fn new() -> Self {
         Self
     }
 }
 
-unsafe impl GlobalAlloc for Alloc {
+unsafe impl GlobalAlloc for CAlloc {
     #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         alloc(layout)
@@ -255,9 +255,9 @@ extern "C" {
 }
 
 /// Implementation for `GlobalAlloc` to allocate/deallocate memory for cache.
-/// Unlike to [`Alloc`] , the backend of `MmapAlloc` is 'posix mmap'.
+/// Unlike to [`CAlloc`] , the backend of `MmapAlloc` is 'posix mmap'.
 ///
-/// [`Alloc`]: struct.Alloc.html
+/// [`CAlloc`]: struct.CAlloc.html
 pub struct MmapAlloc(mmap_allocator::MmapAllocator);
 
 impl Default for MmapAlloc {
