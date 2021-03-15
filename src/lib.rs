@@ -81,22 +81,22 @@ pub fn decrease_cache_size(bytes: usize) -> usize {
 
 /// Implementation for `GlobalAlloc` to allocate/deallocate memory for cache.
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
-pub struct Alloc;
+pub struct CAlloc;
 
-impl Default for Alloc {
+impl Default for CAlloc {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Alloc {
+impl CAlloc {
     /// Creates a new instance.
     pub const fn new() -> Self {
         Self
     }
 }
 
-unsafe impl GlobalAlloc for Alloc {
+unsafe impl GlobalAlloc for CAlloc {
     #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         alloc(layout)
@@ -255,18 +255,18 @@ extern "C" {
 }
 
 /// Implementation for `GlobalAlloc` to allocate/deallocate memory for cache.
-/// Unlike to [`Alloc`] , the backend of `MmapAlloc` is 'posix mmap'.
+/// Unlike to [`CAlloc`] , the backend of `CMmapAlloc` is 'posix mmap'.
 ///
-/// [`Alloc`]: struct.Alloc.html
-pub struct MmapAlloc(mmap_allocator::MmapAllocator);
+/// [`CAlloc`]: struct.CAlloc.html
+pub struct CMmapAlloc(mmap_allocator::MmapAllocator);
 
-impl Default for MmapAlloc {
+impl Default for CMmapAlloc {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl MmapAlloc {
+impl CMmapAlloc {
     /// Creates a new instance.
     #[inline]
     pub const fn new() -> Self {
@@ -274,7 +274,7 @@ impl MmapAlloc {
     }
 }
 
-unsafe impl GlobalAlloc for MmapAlloc {
+unsafe impl GlobalAlloc for CMmapAlloc {
     #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let ptr = self.0.alloc(layout);
