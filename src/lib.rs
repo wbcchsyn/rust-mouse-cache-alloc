@@ -255,18 +255,18 @@ extern "C" {
 }
 
 /// Implementation for `GlobalAlloc` to allocate/deallocate memory for cache.
-/// Unlike to [`CAlloc`] , the backend of `MmapAlloc` is 'posix mmap'.
+/// Unlike to [`CAlloc`] , the backend of `CMmapAlloc` is 'posix mmap'.
 ///
 /// [`CAlloc`]: struct.CAlloc.html
-pub struct MmapAlloc(mmap_allocator::MmapAllocator);
+pub struct CMmapAlloc(mmap_allocator::MmapAllocator);
 
-impl Default for MmapAlloc {
+impl Default for CMmapAlloc {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl MmapAlloc {
+impl CMmapAlloc {
     /// Creates a new instance.
     #[inline]
     pub const fn new() -> Self {
@@ -274,7 +274,7 @@ impl MmapAlloc {
     }
 }
 
-unsafe impl GlobalAlloc for MmapAlloc {
+unsafe impl GlobalAlloc for CMmapAlloc {
     #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let ptr = self.0.alloc(layout);
