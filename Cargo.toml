@@ -12,4 +12,4 @@ license = "LGPL-3.0-or-later OR Apache-2.0"
 mmap-allocator = "0.3"
 
 [dev-dependencies]
-gharial = "0.1"
+gharial = "0.3"
